@@ -8,7 +8,7 @@ app = Flask(__name__)
 # Conexión a la base de datos PostgreSQL
 try:
     conn = psycopg2.connect(
-        host="dpg-d07dj7s9c44c739strhg-a",
+        host="dpg-d07dj7s9c44c739strhg-a.oregon-postgres.render.com",
         database="db_inmobiliaria_59oj",
         user="db_inmobiliaria_59oj_user",
         password="BCLBs5e4e9SgG6tl3Ckkq7Lg7GHlU0sw",
