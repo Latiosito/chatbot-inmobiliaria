@@ -36,7 +36,7 @@ def whatsapp_bot():
             "📞 3. Contactar a un asesor"
         )
 
-    elif incoming_msg_lower in ['1', '1.', 'uno', 'ver casas']:
+    elif 'ver casas' in incoming_msg_lower or incoming_msg_lower in ['1', '1.', 'uno']:
         if cursor:
             cursor.execute("""
                 SELECT titulo, descripcion, precio, modalidad, ubicacion, tipo, estado, edad,
@@ -52,13 +52,13 @@ def whatsapp_bot():
 
                 response += (
                     f"\n🏠 {titulo}\n"
-                    f"🖋 {descripcion}\n"
+                    f"🖊️ {descripcion}\n"
                     f"📍 Ubicación: {ubicacion}\n"
                     f"📄 Tipo: {tipo} | Estado: {estado}\n"
-                    f"👫‍👩 Edad de la propiedad: {edad} años\n"
+                    f"👫 Edad de la propiedad: {edad} años\n"
                     f"🛏️ Recámaras: {num_recamaras} | 🚿 Baños: {num_banios} | 🚗 Estacionamientos: {num_estacionamientos}\n"
                     f"🌊 Superficie de terreno: {superficie_terreno if superficie_terreno else 'No especificado'} m²\n"
-                    f"🛏️ M² Construidos: {mtrs_construidos if mtrs_construidos else 'No especificado'} m²\n"
+                    f"🏗️ M² Construidos: {mtrs_construidos if mtrs_construidos else 'No especificado'} m²\n"
                     f"💵 Precio: ${precio:,.2f} MXN\n"
                     f"🌐 Modalidad: {modalidad}\n"
                 )
@@ -66,7 +66,7 @@ def whatsapp_bot():
         else:
             response = "⚠️ Error de conexión a la base de datos."
 
-    elif incoming_msg_lower in ['2', '2.', 'dos', 'ver terrenos']:
+    elif 'ver terrenos' in incoming_msg_lower or incoming_msg_lower in ['2', '2.', 'dos']:
         if cursor:
             cursor.execute("""
                 SELECT ubicacion, descripcion, precio, superficie, documento
@@ -79,8 +79,8 @@ def whatsapp_bot():
                 ubicacion, descripcion, precio, superficie, documento = terreno
                 response += (
                     f"\n🌳 {ubicacion}\n"
-                    f"🖋 {descripcion}\n"
-                    f"📈 Superficie: {superficie} m²\n"
+                    f"🖊️ {descripcion}\n"
+                    f"📏 Superficie: {superficie} m²\n"
                     f"📄 Documento: {documento}\n"
                     f"💵 Precio: ${precio:,.2f} MXN\n"
                 )
@@ -106,7 +106,7 @@ def whatsapp_bot():
         else:
             response = "⚠️ Error de conexión para guardar tus datos."
 
-    elif incoming_msg_lower in ['3', '3.', 'tres', 'contactar asesor', 'contactar a un asesor']:
+    elif 'asesor' in incoming_msg_lower or incoming_msg_lower in ['3', '3.', 'tres']:
         if cursor:
             cursor.execute("SELECT nombre, telefono FROM asesores LIMIT 1")
             asesor = cursor.fetchone()
