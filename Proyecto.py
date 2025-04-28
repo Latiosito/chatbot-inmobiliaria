@@ -2,10 +2,9 @@ from flask import Flask, request
 from twilio.twiml.messaging_response import MessagingResponse
 import psycopg2
 
-# Crear la aplicación Flask
 app = Flask(__name__)
 
-# Conexión a la base de datos PostgreSQL
+# Conexión a la base de datos
 try:
     conn = psycopg2.connect(
         host="dpg-d07dj7s9c44c739strhg-a.oregon-postgres.render.com",
@@ -43,6 +42,7 @@ def whatsapp_bot():
                        num_recamaras, num_banios, num_estacionamientos, superficie_terreno, mtrs_construidos
                 FROM propiedades
                 ORDER BY id ASC
+                LIMIT 4
             """)
             propiedades = cursor.fetchall()
             response = "🏡 Casas disponibles:\n"
@@ -55,10 +55,10 @@ def whatsapp_bot():
                     f"🖊️ {descripcion}\n"
                     f"📍 Ubicación: {ubicacion}\n"
                     f"📄 Tipo: {tipo} | Estado: {estado}\n"
-                    f"👫 Edad de la propiedad: {edad} años\n"
+                    f"👫 Edad: {edad} años\n"
                     f"🛏️ Recámaras: {num_recamaras} | 🚿 Baños: {num_banios} | 🚗 Estacionamientos: {num_estacionamientos}\n"
-                    f"🌊 Superficie de terreno: {superficie_terreno if superficie_terreno else 'No especificado'} m²\n"
-                    f"🏗️ M² Construidos: {mtrs_construidos if mtrs_construidos else 'No especificado'} m²\n"
+                    f"🌊 Terreno: {superficie_terreno if superficie_terreno else 'No especificado'} m²\n"
+                    f"🏗️ Construcción: {mtrs_construidos if mtrs_construidos else 'No especificado'} m²\n"
                     f"💵 Precio: ${precio:,.2f} MXN\n"
                     f"🌐 Modalidad: {modalidad}\n"
                 )
@@ -72,6 +72,7 @@ def whatsapp_bot():
                 SELECT ubicacion, descripcion, precio, superficie, documento
                 FROM terrenos
                 ORDER BY id ASC
+                LIMIT 4
             """)
             terrenos = cursor.fetchall()
             response = "🌳 Terrenos disponibles:\n"
