@@ -36,7 +36,7 @@ def whatsapp_bot():
             "📞 3. Contactar a un asesor"
         )
 
-    elif incoming_msg in ['1', '1.', 'uno', 'Uno', 'UNO', 'Ver casas', 'ver casas', 'VER CASAS']:
+    elif incoming_msg_lower in ['1', '1.', 'uno', 'ver casas']:
         if cursor:
             cursor.execute("""
                 SELECT titulo, descripcion, precio, modalidad, ubicacion, tipo, estado, edad,
@@ -52,7 +52,7 @@ def whatsapp_bot():
 
                 response += (
                     f"\n🏠 {titulo}\n"
-                    f"🖊️ {descripcion}\n"
+                    f"🖋 {descripcion}\n"
                     f"📍 Ubicación: {ubicacion}\n"
                     f"📄 Tipo: {tipo} | Estado: {estado}\n"
                     f"👫‍👩 Edad de la propiedad: {edad} años\n"
@@ -66,7 +66,7 @@ def whatsapp_bot():
         else:
             response = "⚠️ Error de conexión a la base de datos."
 
-    elif incoming_msg in ['2', '2.', 'dos', 'Dos', 'DOS', 'Ver terrenos', 'ver terrenos', 'VER TERRENOS']:
+    elif incoming_msg_lower in ['2', '2.', 'dos', 'ver terrenos']:
         if cursor:
             cursor.execute("""
                 SELECT ubicacion, descripcion, precio, superficie, documento
@@ -79,7 +79,7 @@ def whatsapp_bot():
                 ubicacion, descripcion, precio, superficie, documento = terreno
                 response += (
                     f"\n🌳 {ubicacion}\n"
-                    f"🖊️ {descripcion}\n"
+                    f"🖋 {descripcion}\n"
                     f"📈 Superficie: {superficie} m²\n"
                     f"📄 Documento: {documento}\n"
                     f"💵 Precio: ${precio:,.2f} MXN\n"
@@ -106,7 +106,7 @@ def whatsapp_bot():
         else:
             response = "⚠️ Error de conexión para guardar tus datos."
 
-    elif incoming_msg in ['3', '3.', 'tres', 'Tres', 'TRES', 'Contactar asesor', 'contactar a un asesor', 'CONTACTAR ASESOR']:
+    elif incoming_msg_lower in ['3', '3.', 'tres', 'contactar asesor', 'contactar a un asesor']:
         if cursor:
             cursor.execute("SELECT nombre, telefono FROM asesores LIMIT 1")
             asesor = cursor.fetchone()
