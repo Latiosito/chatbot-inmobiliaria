@@ -43,7 +43,7 @@ def whatsapp_bot():
                        imagen_url
                 FROM propiedades
                 ORDER BY id ASC
-                LIMIT 2
+                LIMIT 1
             """)
             propiedades = cursor.fetchall()
             response = "🏡 Casas disponibles:\n"
