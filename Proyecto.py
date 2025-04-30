@@ -64,12 +64,12 @@ def whatsapp_bot():
                     f"💵 Precio: ${precio:,.2f} MXN\n"
                     f"🌐 Modalidad: {modalidad}\n"
                 )
-
                 if imagen_url:
                     msg.media(imagen_url)
                 response += detalle
 
             response += "\n📅 Para ver más casas, responde 'ver más casas'"
+            response += "\n🏠 Para comprar esta casa, responde 'comprar casa'"
         else:
             response = "⚠️ Error de conexión a la base de datos."
 
@@ -80,10 +80,10 @@ def whatsapp_bot():
                        num_recamaras, num_banios, num_estacionamientos, superficie_terreno, mtrs_construidos,
                        imagen_url
                 FROM propiedades
-                ORDER BY id ASC OFFSET 4 LIMIT 4
+                ORDER BY id ASC OFFSET 1 LIMIT 3
             """)
             propiedades = cursor.fetchall()
-            response = "🏡 Más casas disponibles:\n"
+            response = "🏠 Más casas disponibles:\n"
             for prop in propiedades:
                 (titulo, descripcion, precio, modalidad, ubicacion, tipo, estado, edad,
                  num_recamaras, num_banios, num_estacionamientos, superficie_terreno, mtrs_construidos,
@@ -101,12 +101,28 @@ def whatsapp_bot():
                     f"💵 Precio: ${precio:,.2f} MXN\n"
                     f"🌐 Modalidad: {modalidad}\n"
                 )
-
                 if imagen_url:
                     msg.media(imagen_url)
                 response += detalle
+
+            response += "\n📅 Para comprar una casa, responde 'comprar casa'"
         else:
             response = "⚠️ Error de conexión a la base de datos."
+
+    elif incoming_msg_lower == 'comprar casa' or incoming_msg_lower == 'comprar terreno':
+        response = (
+            "📝 ¡Perfecto! Para ayudarte mejor, envíanos los siguientes datos en un solo mensaje:\n\n"
+            "Ejemplo: Mi nombre es Juan Pérez, mi tel es 7441234567, mi correo es juan@mail.com, pago contado"
+        )
+
+    elif incoming_msg_lower.startswith('mi nombre es'):
+        try:
+            datos = incoming_msg.replace('mi nombre es', '').strip()
+            cursor.execute("INSERT INTO clientes (nombre, fecha_registro) VALUES (%s, NOW())", (datos,))
+            conn.commit()
+            response = "👏 Datos recibidos correctamente. Un asesor se pondrá en contacto contigo pronto. 📞"
+        except:
+            response = "⚠️ Ocurrió un error guardando tus datos. Inténtalo más tarde."
 
     elif 'ver terrenos' in incoming_msg_lower or incoming_msg_lower in ['2', '2.', 'dos']:
         if cursor:
@@ -127,27 +143,9 @@ def whatsapp_bot():
                     f"📄 Documento: {documento}\n"
                     f"💵 Precio: ${precio:,.2f} MXN\n"
                 )
-            response += "\n📅 Para ver más terrenos, responde 'ver más terrenos'"
+            response += "\n📅 Para comprar un terreno, responde 'comprar terreno'"
         else:
             response = "⚠️ Error de conexión a la base de datos."
-
-    elif incoming_msg_lower in ['comprar casa', 'comprar terreno']:
-        response = (
-            "📝 ¡Excelente! Para ponernos en contacto contigo, por favor envíanos:\n\n"
-            "1. Tu nombre completo\n"
-            "2. Tu número de teléfono\n"
-            "3. Tu correo electrónico\n"
-            "4. Forma de pago: ¿Infonavit o Contado? 💼"
-        )
-
-    elif incoming_msg_lower.startswith('mi nombre es'):
-        if cursor:
-            nombre = incoming_msg.replace('mi nombre es', '').strip().title()
-            cursor.execute("INSERT INTO clientes (nombre, fecha_registro) VALUES (%s, NOW())", (nombre,))
-            conn.commit()
-            response = "👏 Datos recibidos correctamente. Un asesor se pondrá en contacto contigo pronto. 📞"
-        else:
-            response = "⚠️ Error de conexión para guardar tus datos."
 
     elif 'asesor' in incoming_msg_lower or incoming_msg_lower in ['3', '3.', 'tres']:
         if cursor:
