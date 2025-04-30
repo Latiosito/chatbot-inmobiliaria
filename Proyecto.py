@@ -70,7 +70,8 @@ def whatsapp_bot():
         if cursor:
             cursor.execute("""
                 SELECT titulo, descripcion, precio, modalidad, ubicacion, tipo, estado, edad,
-                       num_recamaras, num_banios, num_estacionamientos, superficie_terreno, mtrs_construidos
+                       num_recamaras, num_banios, num_estacionamientos, superficie_terreno,
+                       mtrs_construidos, imagen_url
                 FROM propiedades
                 ORDER BY id ASC
                 LIMIT 1
@@ -79,7 +80,11 @@ def whatsapp_bot():
             response = "🏡 Casas disponibles:\n"
             for prop in propiedades:
                 (titulo, descripcion, precio, modalidad, ubicacion, tipo, estado, edad,
-                 num_recamaras, num_banios, num_estacionamientos, superficie_terreno, mtrs_construidos) = prop
+                 num_recamaras, num_banios, num_estacionamientos, superficie_terreno,
+                 mtrs_construidos, imagen_url) = prop
+
+                if imagen_url:
+                    msg.media(imagen_url)
 
                 response += (
                     f"\n🏠 {titulo}\n"
@@ -96,6 +101,7 @@ def whatsapp_bot():
             response += "\n✅ Si te interesa esta propiedad, responde 'comprar casa'"
         else:
             response = "⚠ Error de conexión a la base de datos."
+
 
     elif 'ver terrenos' in incoming_msg_lower or incoming_msg_lower in ['2', '2.', 'dos']:
         if cursor:
