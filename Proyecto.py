@@ -1,6 +1,7 @@
 from flask import Flask, request
 from twilio.twiml.messaging_response import MessagingResponse
 import psycopg2
+import re
 
 app = Flask(__name__)
 offset_casas = 0
@@ -67,7 +68,7 @@ def whatsapp_bot():
                     f"💵 Precio: ${precio:,.2f} MXN\n"
                     f"🌐 Modalidad: {modalidad}\n"
                     "\n📅 Para ver más casas, responde 'ver más casas'\n"
-                    "🛒 Para comprar esta casa, responde 'comprar casa'"
+                    "💼 Para comprar esta casa, responde 'comprar casa'"
                 )
                 if imagen_url:
                     msg.media(imagen_url)
@@ -88,7 +89,7 @@ def whatsapp_bot():
             """, (offset_casas,))
             propiedades = cursor.fetchall()
             if not propiedades:
-                response = "🏁 Ya no hay más casas disponibles."
+                response = "🏑 Ya no hay más casas disponibles."
             else:
                 response = "🏡 Más casas disponibles:\n"
                 for prop in propiedades:
@@ -108,7 +109,7 @@ def whatsapp_bot():
                         f"💵 Precio: ${precio:,.2f} MXN\n"
                         f"🌐 Modalidad: {modalidad}\n"
                         "\n📅 Para ver más casas, responde 'ver más casas'\n"
-                        "🛒 Para comprar esta casa, responde 'comprar casa'"
+                        "💼 Para comprar esta casa, responde 'comprar casa'"
                     )
                     if imagen_url:
                         msg.media(imagen_url)
@@ -124,12 +125,23 @@ def whatsapp_bot():
 
     elif incoming_msg_lower.startswith('mi nombre es'):
         try:
-            datos = incoming_msg.replace('mi nombre es', '').strip()
-            cursor.execute("INSERT INTO clientes (nombre, fecha_registro) VALUES (%s, NOW())", (datos,))
-            conn.commit()
-            response = "👏 Datos recibidos correctamente. Un asesor se pondrá en contacto contigo pronto. 📞"
+            match = re.search(r"mi nombre es (.*?), mi tel es (\d+), mi correo es (.*?), pago (.*?)$", incoming_msg_lower)
+            if match:
+                nombre = match.group(1).strip().title()
+                telefono = match.group(2).strip()
+                correo = match.group(3).strip()
+                forma_pago = match.group(4).strip().capitalize()
+
+                cursor.execute("""
+                    INSERT INTO clientes (nombre, telefono, correo, forma_pago, fecha_registro)
+                    VALUES (%s, %s, %s, %s, NOW())
+                """, (nombre, telefono, correo, forma_pago))
+                conn.commit()
+                response = "👏 Datos recibidos correctamente. En un momento un asesor se contactará contigo. 📞"
+            else:
+                response = "⚠️ Por favor usa el formato correcto: Mi nombre es..., mi tel es..., mi correo es..., pago..."
         except:
-            response = "⚠️ Ocurrió un error guardando tus datos. Inténtalo más tarde."
+            response = "⚠️ Error al guardar tus datos. Intenta de nuevo."
 
     elif 'ver terrenos' in incoming_msg_lower or incoming_msg_lower in ['2', '2.', 'dos']:
         if cursor:
@@ -146,11 +158,11 @@ def whatsapp_bot():
                 response += (
                     f"\n🌳 {ubicacion}\n"
                     f"🖊️ {descripcion}\n"
-                    f"📏 Superficie: {superficie} m²\n"
+                    f"📊 Superficie: {superficie} m²\n"
                     f"📄 Documento: {documento}\n"
                     f"💵 Precio: ${precio:,.2f} MXN\n"
                 )
-            response += "\n🛒 Para comprar un terreno, responde 'comprar terreno'"
+            response += "\n💼 Para comprar un terreno, responde 'comprar terreno'"
         else:
             response = "⚠️ Error de conexión a la base de datos."
 
@@ -164,7 +176,7 @@ def whatsapp_bot():
                     f"📞 Asesor disponible:\n\n"
                     f"👤 Nombre: {nombre}\n"
                     f"📞 Teléfono: {telefono}\n\n"
-                    "👇 Puedes llamarlo directamente o enviarle un WhatsApp."
+                    "🔻 Puedes llamarlo directamente o enviarle un WhatsApp."
                 )
             else:
                 response = "⚠️ No hay asesores disponibles en este momento."
@@ -174,7 +186,7 @@ def whatsapp_bot():
     else:
         response = (
             "🤔 No entendí tu mensaje.\n"
-            "✉️ Por favor responde 'hola' para ver las opciones disponibles."
+            "📩 Por favor responde 'hola' para ver las opciones disponibles."
         )
 
     msg.body(response)
