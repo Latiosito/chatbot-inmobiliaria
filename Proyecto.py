@@ -3,8 +3,8 @@ from twilio.twiml.messaging_response import MessagingResponse
 import psycopg2
 
 app = Flask(__name__)
+offset_casas = 0
 
-# Conexión a la base de datos
 try:
     conn = psycopg2.connect(
         host="dpg-d07dj7s9c44c739strhg-a.oregon-postgres.render.com",
@@ -22,12 +22,14 @@ except Exception as e:
 
 @app.route('/whatsapp', methods=['POST'])
 def whatsapp_bot():
+    global offset_casas
     incoming_msg = request.values.get('Body', '').strip()
     incoming_msg_lower = incoming_msg.lower()
     resp = MessagingResponse()
     msg = resp.message()
 
     if 'hola' in incoming_msg_lower:
+        offset_casas = 0
         response = (
             "👋 ¡Hola! Bienvenido a nuestro asesor virtual inmobiliario.\n\n"
             "🏠 1. Ver casas\n"
@@ -36,6 +38,7 @@ def whatsapp_bot():
         )
 
     elif 'ver casas' in incoming_msg_lower or incoming_msg_lower in ['1', '1.', 'uno']:
+        offset_casas = 0
         if cursor:
             cursor.execute("""
                 SELECT titulo, descripcion, precio, modalidad, ubicacion, tipo, estado, edad,
@@ -43,8 +46,8 @@ def whatsapp_bot():
                        imagen_url
                 FROM propiedades
                 ORDER BY id ASC
-                LIMIT 4
-            """)
+                OFFSET %s LIMIT 1
+            """, (offset_casas,))
             propiedades = cursor.fetchall()
             response = "🏡 Casas disponibles:\n"
             for prop in propiedades:
@@ -60,40 +63,34 @@ def whatsapp_bot():
                     f"👫 Edad: {edad} años\n"
                     f"🛌 Recámaras: {num_recamaras} | 🚿 Baños: {num_banios} | 🚗 Estacionamientos: {num_estacionamientos}\n"
                     f"🌊 Terreno: {superficie_terreno if superficie_terreno else 'No especificado'} m²\n"
-                    f"🛇 Construcción: {mtrs_construidos if mtrs_construidos else 'No especificado'} m²\n"
+                    f"🏗️ Construcción: {mtrs_construidos if mtrs_construidos else 'No especificado'} m²\n"
                     f"💵 Precio: ${precio:,.2f} MXN\n"
                     f"🌐 Modalidad: {modalidad}\n"
+                    "\n📅 Para ver más casas, responde 'ver más casas'\n"
+                    "🛒 Para comprar esta casa, responde 'comprar casa'"
                 )
-
                 if imagen_url:
                     msg.media(imagen_url)
                 response += detalle
-
-            response += "\n🗓️ Para ver más casas, responde 'ver más casas 1'"
-            response += "\n🏠 Para comprar esta casa, responde 'comprar casa'"
         else:
             response = "⚠️ Error de conexión a la base de datos."
 
-    elif incoming_msg_lower.startswith('ver más casas'):
-        try:
-            partes = incoming_msg_lower.split()
-            pagina = int(partes[-1]) if len(partes) > 3 else 1
-            offset = pagina * 4
-        except:
-            offset = 4
-
+    elif incoming_msg_lower == 'ver más casas':
+        offset_casas += 1
         if cursor:
-            cursor.execute(f"""
+            cursor.execute("""
                 SELECT titulo, descripcion, precio, modalidad, ubicacion, tipo, estado, edad,
                        num_recamaras, num_banios, num_estacionamientos, superficie_terreno, mtrs_construidos,
                        imagen_url
                 FROM propiedades
                 ORDER BY id ASC
-                OFFSET {offset} LIMIT 4
-            """)
+                OFFSET %s LIMIT 1
+            """, (offset_casas,))
             propiedades = cursor.fetchall()
-            if propiedades:
-                response = f"🏡 Más casas disponibles (página {offset//4 + 1}):\n"
+            if not propiedades:
+                response = "🏁 Ya no hay más casas disponibles."
+            else:
+                response = "🏡 Más casas disponibles:\n"
                 for prop in propiedades:
                     (titulo, descripcion, precio, modalidad, ubicacion, tipo, estado, edad,
                      num_recamaras, num_banios, num_estacionamientos, superficie_terreno, mtrs_construidos,
@@ -107,39 +104,55 @@ def whatsapp_bot():
                         f"👫 Edad: {edad} años\n"
                         f"🛌 Recámaras: {num_recamaras} | 🚿 Baños: {num_banios} | 🚗 Estacionamientos: {num_estacionamientos}\n"
                         f"🌊 Terreno: {superficie_terreno if superficie_terreno else 'No especificado'} m²\n"
-                        f"🛇 Construcción: {mtrs_construidos if mtrs_construidos else 'No especificado'} m²\n"
+                        f"🏗️ Construcción: {mtrs_construidos if mtrs_construidos else 'No especificado'} m²\n"
                         f"💵 Precio: ${precio:,.2f} MXN\n"
                         f"🌐 Modalidad: {modalidad}\n"
+                        "\n📅 Para ver más casas, responde 'ver más casas'\n"
+                        "🛒 Para comprar esta casa, responde 'comprar casa'"
                     )
-
                     if imagen_url:
                         msg.media(imagen_url)
                     response += detalle
-
-                response += f"\n🗓️ Para ver más casas, responde 'ver más casas {offset//4 + 1}'"
-                response += "\n🏠 Para comprar esta casa, responde 'comprar casa'"
-            else:
-                response = "🔚 Ya no hay más casas disponibles por ahora."
         else:
             response = "⚠️ Error de conexión a la base de datos."
 
-    elif incoming_msg_lower in ['comprar casa', 'comprar terreno']:
+    elif 'comprar casa' in incoming_msg_lower or 'comprar terreno' in incoming_msg_lower:
         response = (
-            "📝 ¡Excelente! Para ponernos en contacto contigo, por favor envíanos:\n\n"
-            "1. Tu nombre completo\n"
-            "2. Tu número de teléfono\n"
-            "3. Tu correo electrónico\n"
-            "4. Forma de pago: ¿Infonavit o Contado? 💼"
+            "📝 ¡Perfecto! Para ayudarte mejor, envíanos los siguientes datos en un solo mensaje:\n\n"
+            "Ejemplo: Mi nombre es Juan Pérez, mi tel es 7441234567, mi correo es juan@mail.com, pago contado"
         )
 
     elif incoming_msg_lower.startswith('mi nombre es'):
-        if cursor:
-            nombre = incoming_msg.replace('mi nombre es', '').strip().title()
-            cursor.execute("INSERT INTO clientes (nombre, fecha_registro) VALUES (%s, NOW())", (nombre,))
+        try:
+            datos = incoming_msg.replace('mi nombre es', '').strip()
+            cursor.execute("INSERT INTO clientes (nombre, fecha_registro) VALUES (%s, NOW())", (datos,))
             conn.commit()
             response = "👏 Datos recibidos correctamente. Un asesor se pondrá en contacto contigo pronto. 📞"
+        except:
+            response = "⚠️ Ocurrió un error guardando tus datos. Inténtalo más tarde."
+
+    elif 'ver terrenos' in incoming_msg_lower or incoming_msg_lower in ['2', '2.', 'dos']:
+        if cursor:
+            cursor.execute("""
+                SELECT ubicacion, descripcion, precio, superficie, documento
+                FROM terrenos
+                ORDER BY id ASC
+                LIMIT 4
+            """)
+            terrenos = cursor.fetchall()
+            response = "🌳 Terrenos disponibles:\n"
+            for terreno in terrenos:
+                ubicacion, descripcion, precio, superficie, documento = terreno
+                response += (
+                    f"\n🌳 {ubicacion}\n"
+                    f"🖊️ {descripcion}\n"
+                    f"📏 Superficie: {superficie} m²\n"
+                    f"📄 Documento: {documento}\n"
+                    f"💵 Precio: ${precio:,.2f} MXN\n"
+                )
+            response += "\n🛒 Para comprar un terreno, responde 'comprar terreno'"
         else:
-            response = "⚠️ Error de conexión para guardar tus datos."
+            response = "⚠️ Error de conexión a la base de datos."
 
     elif 'asesor' in incoming_msg_lower or incoming_msg_lower in ['3', '3.', 'tres']:
         if cursor:
@@ -150,8 +163,8 @@ def whatsapp_bot():
                 response = (
                     f"📞 Asesor disponible:\n\n"
                     f"👤 Nombre: {nombre}\n"
-                    f"🔎 Teléfono: {telefono}\n\n"
-                    "🔻 Puedes llamarlo directamente o enviarle un WhatsApp."
+                    f"📞 Teléfono: {telefono}\n\n"
+                    "👇 Puedes llamarlo directamente o enviarle un WhatsApp."
                 )
             else:
                 response = "⚠️ No hay asesores disponibles en este momento."
