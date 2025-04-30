@@ -39,7 +39,8 @@ def whatsapp_bot():
         if cursor:
             cursor.execute("""
                 SELECT titulo, descripcion, precio, modalidad, ubicacion, tipo, estado, edad,
-                       num_recamaras, num_banios, num_estacionamientos, superficie_terreno, mtrs_construidos
+                       num_recamaras, num_banios, num_estacionamientos, superficie_terreno, mtrs_construidos,
+                       imagen_url
                 FROM propiedades
                 ORDER BY id ASC
                 LIMIT 4
@@ -48,21 +49,62 @@ def whatsapp_bot():
             response = "🏡 Casas disponibles:\n"
             for prop in propiedades:
                 (titulo, descripcion, precio, modalidad, ubicacion, tipo, estado, edad,
-                 num_recamaras, num_banios, num_estacionamientos, superficie_terreno, mtrs_construidos) = prop
+                 num_recamaras, num_banios, num_estacionamientos, superficie_terreno, mtrs_construidos,
+                 imagen_url) = prop
 
-                response += (
+                detalle = (
                     f"\n🏠 {titulo}\n"
                     f"🖊️ {descripcion}\n"
                     f"📍 Ubicación: {ubicacion}\n"
                     f"📄 Tipo: {tipo} | Estado: {estado}\n"
                     f"👫 Edad: {edad} años\n"
-                    f"🛏️ Recámaras: {num_recamaras} | 🚿 Baños: {num_banios} | 🚗 Estacionamientos: {num_estacionamientos}\n"
+                    f"🛌 Recámaras: {num_recamaras} | 🚿 Baños: {num_banios} | 🚗 Estacionamientos: {num_estacionamientos}\n"
                     f"🌊 Terreno: {superficie_terreno if superficie_terreno else 'No especificado'} m²\n"
                     f"🏗️ Construcción: {mtrs_construidos if mtrs_construidos else 'No especificado'} m²\n"
                     f"💵 Precio: ${precio:,.2f} MXN\n"
                     f"🌐 Modalidad: {modalidad}\n"
                 )
-            response += "\n✅ Si te interesa alguna, responde 'comprar casa'"
+
+                if imagen_url:
+                    msg.media(imagen_url)
+                response += detalle
+
+            response += "\n📅 Para ver más casas, responde 'ver más casas'"
+        else:
+            response = "⚠️ Error de conexión a la base de datos."
+
+    elif incoming_msg_lower == 'ver más casas':
+        if cursor:
+            cursor.execute("""
+                SELECT titulo, descripcion, precio, modalidad, ubicacion, tipo, estado, edad,
+                       num_recamaras, num_banios, num_estacionamientos, superficie_terreno, mtrs_construidos,
+                       imagen_url
+                FROM propiedades
+                ORDER BY id ASC OFFSET 4 LIMIT 4
+            """)
+            propiedades = cursor.fetchall()
+            response = "🏡 Más casas disponibles:\n"
+            for prop in propiedades:
+                (titulo, descripcion, precio, modalidad, ubicacion, tipo, estado, edad,
+                 num_recamaras, num_banios, num_estacionamientos, superficie_terreno, mtrs_construidos,
+                 imagen_url) = prop
+
+                detalle = (
+                    f"\n🏠 {titulo}\n"
+                    f"🖊️ {descripcion}\n"
+                    f"📍 Ubicación: {ubicacion}\n"
+                    f"📄 Tipo: {tipo} | Estado: {estado}\n"
+                    f"👫 Edad: {edad} años\n"
+                    f"🛌 Recámaras: {num_recamaras} | 🚿 Baños: {num_banios} | 🚗 Estacionamientos: {num_estacionamientos}\n"
+                    f"🌊 Terreno: {superficie_terreno if superficie_terreno else 'No especificado'} m²\n"
+                    f"🏗️ Construcción: {mtrs_construidos if mtrs_construidos else 'No especificado'} m²\n"
+                    f"💵 Precio: ${precio:,.2f} MXN\n"
+                    f"🌐 Modalidad: {modalidad}\n"
+                )
+
+                if imagen_url:
+                    msg.media(imagen_url)
+                response += detalle
         else:
             response = "⚠️ Error de conexión a la base de datos."
 
@@ -81,11 +123,11 @@ def whatsapp_bot():
                 response += (
                     f"\n🌳 {ubicacion}\n"
                     f"🖊️ {descripcion}\n"
-                    f"📏 Superficie: {superficie} m²\n"
+                    f"📊 Superficie: {superficie} m²\n"
                     f"📄 Documento: {documento}\n"
                     f"💵 Precio: ${precio:,.2f} MXN\n"
                 )
-            response += "\n✅ Si te interesa alguno, responde 'comprar terreno'"
+            response += "\n📅 Para ver más terrenos, responde 'ver más terrenos'"
         else:
             response = "⚠️ Error de conexión a la base de datos."
 
@@ -116,8 +158,8 @@ def whatsapp_bot():
                 response = (
                     f"📞 Asesor disponible:\n\n"
                     f"👤 Nombre: {nombre}\n"
-                    f"📞 Teléfono: {telefono}\n\n"
-                    "👇 Puedes llamarlo directamente o enviarle un WhatsApp."
+                    f"🔎 Teléfono: {telefono}\n\n"
+                    "🔻 Puedes llamarlo directamente o enviarle un WhatsApp."
                 )
             else:
                 response = "⚠️ No hay asesores disponibles en este momento."
