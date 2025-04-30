@@ -1,7 +1,6 @@
 from flask import Flask, request
 from twilio.twiml.messaging_response import MessagingResponse
 import psycopg2
-import re
 
 app = Flask(__name__)
 offset_casas = 0
@@ -68,7 +67,7 @@ def whatsapp_bot():
                     f"💵 Precio: ${precio:,.2f} MXN\n"
                     f"🌐 Modalidad: {modalidad}\n"
                     "\n📅 Para ver más casas, responde 'ver más casas'\n"
-                    "💼 Para comprar esta casa, responde 'comprar casa'"
+                    "🛒 Para comprar esta casa, responde 'comprar casa'"
                 )
                 if imagen_url:
                     msg.media(imagen_url)
@@ -89,7 +88,7 @@ def whatsapp_bot():
             """, (offset_casas,))
             propiedades = cursor.fetchall()
             if not propiedades:
-                response = "🏑 Ya no hay más casas disponibles."
+                response = "🏁 Ya no hay más casas disponibles."
             else:
                 response = "🏡 Más casas disponibles:\n"
                 for prop in propiedades:
@@ -109,7 +108,7 @@ def whatsapp_bot():
                         f"💵 Precio: ${precio:,.2f} MXN\n"
                         f"🌐 Modalidad: {modalidad}\n"
                         "\n📅 Para ver más casas, responde 'ver más casas'\n"
-                        "💼 Para comprar esta casa, responde 'comprar casa'"
+                        "🛒 Para comprar esta casa, responde 'comprar casa'"
                     )
                     if imagen_url:
                         msg.media(imagen_url)
@@ -117,31 +116,32 @@ def whatsapp_bot():
         else:
             response = "⚠️ Error de conexión a la base de datos."
 
-    elif 'comprar casa' in incoming_msg_lower or 'comprar terreno' in incoming_msg_lower:
+    elif incoming_msg_lower in ['comprar casa', 'comprar terreno']:
+        interes = 'casa' if 'casa' in incoming_msg_lower else 'terreno'
+        msg.session = {'interes': interes}
         response = (
             "📝 ¡Perfecto! Para ayudarte mejor, envíanos los siguientes datos en un solo mensaje:\n\n"
-            "Ejemplo: Mi nombre es Juan Pérez, mi tel es 7441234567, mi correo es juan@mail.com, pago contado"
+            "Ejemplo:\nMi nombre es Juan Pérez, mi tel es 7441234567, mi correo es juan@mail.com, pago contado"
         )
 
     elif incoming_msg_lower.startswith('mi nombre es'):
         try:
-            match = re.search(r"mi nombre es (.*?), mi tel es (\d+), mi correo es (.*?), pago (.*?)$", incoming_msg_lower)
-            if match:
-                nombre = match.group(1).strip().title()
-                telefono = match.group(2).strip()
-                correo = match.group(3).strip()
-                forma_pago = match.group(4).strip().capitalize()
+            texto = incoming_msg.replace('Mi nombre es', '', 1).strip()
+            partes = [p.strip() for p in texto.split(',')]
+            nombre = partes[0]
+            telefono = partes[1].replace('mi tel es', '').strip()
+            email = partes[2].replace('mi correo es', '').strip()
+            forma_pago = partes[3]
 
-                cursor.execute("""
-                    INSERT INTO clientes (nombre, telefono, correo, forma_pago, fecha_registro)
-                    VALUES (%s, %s, %s, %s, NOW())
-                """, (nombre, telefono, correo, forma_pago))
-                conn.commit()
-                response = "👏 Datos recibidos correctamente. En un momento un asesor se contactará contigo. 📞"
-            else:
-                response = "⚠️ Por favor usa el formato correcto: Mi nombre es..., mi tel es..., mi correo es..., pago..."
-        except:
-            response = "⚠️ Error al guardar tus datos. Intenta de nuevo."
+            cursor.execute("""
+                INSERT INTO clientes (nombre, telefono, email, intereses, fecha_registro)
+                VALUES (%s, %s, %s, %s, NOW())
+            """, (nombre.title(), telefono, email.lower(), forma_pago.title()))
+            conn.commit()
+            response = "✅ Gracias, en un momento un asesor se contactará contigo. 📞"
+        except Exception as e:
+            print(f"Error insertando cliente: {e}")
+            response = "⚠️ No se pudieron guardar tus datos. Asegúrate de seguir el formato del ejemplo."
 
     elif 'ver terrenos' in incoming_msg_lower or incoming_msg_lower in ['2', '2.', 'dos']:
         if cursor:
@@ -158,11 +158,11 @@ def whatsapp_bot():
                 response += (
                     f"\n🌳 {ubicacion}\n"
                     f"🖊️ {descripcion}\n"
-                    f"📊 Superficie: {superficie} m²\n"
+                    f"📏 Superficie: {superficie} m²\n"
                     f"📄 Documento: {documento}\n"
                     f"💵 Precio: ${precio:,.2f} MXN\n"
                 )
-            response += "\n💼 Para comprar un terreno, responde 'comprar terreno'"
+            response += "\n🛒 Para comprar un terreno, responde 'comprar terreno'"
         else:
             response = "⚠️ Error de conexión a la base de datos."
 
@@ -176,7 +176,7 @@ def whatsapp_bot():
                     f"📞 Asesor disponible:\n\n"
                     f"👤 Nombre: {nombre}\n"
                     f"📞 Teléfono: {telefono}\n\n"
-                    "🔻 Puedes llamarlo directamente o enviarle un WhatsApp."
+                    "👇 Puedes llamarlo directamente o enviarle un WhatsApp."
                 )
             else:
                 response = "⚠️ No hay asesores disponibles en este momento."
@@ -186,7 +186,7 @@ def whatsapp_bot():
     else:
         response = (
             "🤔 No entendí tu mensaje.\n"
-            "📩 Por favor responde 'hola' para ver las opciones disponibles."
+            "✉️ Por favor responde 'hola' para ver las opciones disponibles."
         )
 
     msg.body(response)
