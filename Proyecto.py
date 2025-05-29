@@ -20,12 +20,12 @@ try:
         sslmode='require'
     )
     cursor = conn.cursor()
+    print("✅ Conexión exitosa a la base de datos.")
 except Exception as e:
     print("❌ Error de conexión a la base de datos:")
-    print(e)  # Esto mostrará en logs de Render cuál fue el fallo exacto
+    print(e)
     conn = None
     cursor = None
-
 
 esperando_datos = {}
 
@@ -36,6 +36,8 @@ def whatsapp_bot():
     from_number = request.values.get('From', '')
     resp = MessagingResponse()
     msg = resp.message()
+
+    print(f"📨 Mensaje recibido de {from_number}: {incoming_msg}")
 
     global esperando_datos
 
@@ -56,6 +58,7 @@ def whatsapp_bot():
                 response = "✅ Gracias, en un momento lo contactará un asesor."
                 esperando_datos[from_number] = None
             except Exception as e:
+                print("❌ Error al guardar cliente:", e)
                 response = f"⚠ Error al guardar tus datos: {e}"
         else:
             response = "⚠ Por favor, envía tus datos como:\nMi nombre es Juan Pérez, mi tel es 7441234567, mi correo es juan@mail.com, pago contado"
@@ -72,7 +75,10 @@ def whatsapp_bot():
         )
 
     elif 'ver casas' in incoming_msg_lower or incoming_msg_lower in ['1', '1.', 'uno']:
-        if cursor:
+        try:
+            if not cursor:
+                raise Exception("Cursor no disponible")
+
             cursor.execute("""
                 SELECT titulo, descripcion, precio, modalidad, ubicacion, tipo, estado, edad,
                        num_recamaras, num_banios, num_estacionamientos, superficie_terreno,
@@ -104,19 +110,23 @@ def whatsapp_bot():
                     f"🌐 Modalidad: {modalidad}\n"
                 )
             response += "\n✅ Si te interesa esta propiedad, responde 'comprar casa'"
-        else:
-            response = "⚠ Error de conexión a la base de datos."
+        except Exception as e:
+            print("❌ Error en opción 1 (ver casas):", e)
+            response = "⚠ Error al consultar casas en la base de datos."
 
     elif 'ver terrenos' in incoming_msg_lower or incoming_msg_lower in ['2', '2.', 'dos']:
-        if cursor:
+        try:
+            if not cursor:
+                raise Exception("Cursor no disponible")
+
             cursor.execute("""
                 SELECT ubicacion, descripcion, precio, superficie, documento, pdf_url
                 FROM terrenos
                 ORDER BY id ASC
-                LIMIT 4
+                LIMIT 1
             """)
             terrenos = cursor.fetchall()
-            response = "🌳 Terrenos disponibles:\n"
+            response = "🌳 Terreno disponible:\n"
             for terreno in terrenos:
                 ubicacion, descripcion, precio, superficie, documento, pdf_url = terreno
 
@@ -131,8 +141,9 @@ def whatsapp_bot():
                     f"💵 Precio: ${precio:,.2f} MXN\n"
                 )
             response += "\n✅ Si te interesa alguno, responde 'comprar terreno'"
-        else:
-            response = "⚠ Error de conexión a la base de datos."
+        except Exception as e:
+            print("❌ Error en opción 2 (ver terrenos):", e)
+            response = "⚠ Error al consultar terrenos en la base de datos."
 
     elif incoming_msg_lower == 'comprar casa':
         esperando_datos[from_number] = 'casa'
@@ -149,7 +160,10 @@ def whatsapp_bot():
         )
 
     elif 'asesor' in incoming_msg_lower or incoming_msg_lower in ['3', '3.', 'tres']:
-        if cursor:
+        try:
+            if not cursor:
+                raise Exception("Cursor no disponible")
+
             cursor.execute("SELECT nombre, telefono FROM asesores LIMIT 1")
             asesor = cursor.fetchone()
             if asesor:
@@ -162,7 +176,8 @@ def whatsapp_bot():
                 )
             else:
                 response = "⚠ No hay asesores disponibles en este momento."
-        else:
+        except Exception as e:
+            print("❌ Error al consultar asesores:", e)
             response = "⚠ Error de conexión a la base de datos."
 
     else:
