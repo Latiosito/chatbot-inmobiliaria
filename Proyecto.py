@@ -21,9 +21,11 @@ try:
     )
     cursor = conn.cursor()
 except Exception as e:
-    print(f"Error de conexión a la base de datos: {e}")
+    print("❌ Error de conexión a la base de datos:")
+    print(e)  # Esto mostrará en logs de Render cuál fue el fallo exacto
     conn = None
     cursor = None
+
 
 esperando_datos = {}
 
