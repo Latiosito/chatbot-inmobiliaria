@@ -6,10 +6,9 @@ import os
 from dotenv import load_dotenv
 
 load_dotenv()
-
 app = Flask(__name__)
 
-# Conexión a la base de datos usando variables de entorno
+# Conexión a la base de datos
 try:
     conn = psycopg2.connect(
         host=os.getenv("DB_HOST"),
@@ -22,8 +21,7 @@ try:
     cursor = conn.cursor()
     print("✅ Conexión exitosa a la base de datos.")
 except Exception as e:
-    print("❌ Error de conexión a la base de datos:")
-    print(e)
+    print("❌ Error de conexión a la base de datos:", e)
     conn = None
     cursor = None
 
@@ -36,8 +34,6 @@ def whatsapp_bot():
     from_number = request.values.get('From', '')
     resp = MessagingResponse()
     msg = resp.message()
-
-    print(f"📨 Mensaje recibido de {from_number}: {incoming_msg}")
 
     global esperando_datos
 
@@ -55,138 +51,106 @@ def whatsapp_bot():
                     VALUES (%s, %s, %s, %s, NOW())
                 """, (nombre, email, telefono, interes))
                 conn.commit()
-                response = "✅ Gracias, en un momento lo contactará un asesor."
+                msg.body("✅ Gracias, en un momento lo contactará un asesor.")
                 esperando_datos[from_number] = None
             except Exception as e:
-                print("❌ Error al guardar cliente:", e)
-                response = f"⚠ Error al guardar tus datos: {e}"
+                msg.body(f"⚠ Error al guardar tus datos: {e}")
         else:
-            response = "⚠ Por favor, envía tus datos como:\nMi nombre es Juan Pérez, mi tel es 7441234567, mi correo es juan@mail.com, pago contado"
-        msg.body(response)
+            msg.body("⚠ Por favor, envía tus datos como:\nMi nombre es Juan Pérez, mi tel es 7441234567, mi correo es juan@mail.com, pago contado")
         return str(resp)
 
     if 'hola' in incoming_msg_lower:
         esperando_datos[from_number] = None
-        response = (
+        msg.body(
             "👋 ¡Hola! Bienvenido a nuestro asesor virtual inmobiliario.\n\n"
             "🏠 1. Ver casas\n"
             "🌳 2. Ver terrenos\n"
             "📞 3. Contactar a un asesor"
         )
 
-    elif 'ver casas' in incoming_msg_lower or incoming_msg_lower in ['1', '1.', 'uno']:
+    elif incoming_msg_lower in ['1', '1.', 'uno', 'ver casas']:
         try:
-            if not cursor:
-                raise Exception("Cursor no disponible")
-
             cursor.execute("""
                 SELECT titulo, descripcion, precio, modalidad, ubicacion, tipo, estado, edad,
                        num_recamaras, num_banios, num_estacionamientos, superficie_terreno,
                        mtrs_construidos, pdf_url
                 FROM propiedades
                 ORDER BY id ASC
-                LIMIT 1
+                LIMIT 2
             """)
-            propiedades = cursor.fetchall()
-            response = "🏡 Casas disponibles:\n"
-            for prop in propiedades:
+            prop = cursor.fetchone()
+            if prop:
                 (titulo, descripcion, precio, modalidad, ubicacion, tipo, estado, edad,
                  num_recamaras, num_banios, num_estacionamientos, superficie_terreno,
                  mtrs_construidos, pdf_url) = prop
 
-                if pdf_url:
-                    msg.media(pdf_url)
-
-                response += (
-                    f"\n🏠 {titulo}\n"
+                texto = (
+                    f"🏠 {titulo}\n"
                     f"🖊 {descripcion}\n"
                     f"📍 Ubicación: {ubicacion}\n"
                     f"📄 Tipo: {tipo} | Estado: {estado}\n"
                     f"👫 Edad: {edad} años\n"
                     f"🛏 Recámaras: {num_recamaras} | 🚿 Baños: {num_banios} | 🚗 Estacionamientos: {num_estacionamientos}\n"
-                    f"🌊 Terreno: {superficie_terreno if superficie_terreno else 'No especificado'} m²\n"
-                    f"🏗 Construcción: {mtrs_construidos if mtrs_construidos else 'No especificado'} m²\n"
-                    f"💵 Precio: ${precio:,.2f} MXN\n"
-                    f"🌐 Modalidad: {modalidad}\n"
+                    f"🌊 Terreno: {superficie_terreno} m² | 🏗 Construcción: {mtrs_construidos} m²\n"
+                    f"💵 Precio: ${precio:,.2f} MXN | 🌐 Modalidad: {modalidad}\n"
                 )
-            response += "\n✅ Si te interesa esta propiedad, responde 'comprar casa'"
+                if pdf_url:
+                    texto += f"📎 Más detalles: {pdf_url}"
+                msg.body(texto)
+            else:
+                msg.body("⚠ No hay casas registradas en este momento.")
         except Exception as e:
-            print("❌ Error en opción 1 (ver casas):", e)
-            response = "⚠ Error al consultar casas en la base de datos."
+            msg.body("⚠ Error al consultar casas.")
+            print("❌ Error:", e)
 
-    elif 'ver terrenos' in incoming_msg_lower or incoming_msg_lower in ['2', '2.', 'dos']:
+    elif incoming_msg_lower in ['2', '2.', 'dos', 'ver terrenos']:
         try:
-            if not cursor:
-                raise Exception("Cursor no disponible")
-
             cursor.execute("""
                 SELECT ubicacion, descripcion, precio, superficie, documento, pdf_url
                 FROM terrenos
                 ORDER BY id ASC
-                LIMIT 1
+                LIMIT 2
             """)
-            terrenos = cursor.fetchall()
-            response = "🌳 Terreno disponible:\n"
-            for terreno in terrenos:
+            terreno = cursor.fetchone()
+            if terreno:
                 ubicacion, descripcion, precio, superficie, documento, pdf_url = terreno
-
-                if pdf_url:
-                    msg.media(pdf_url)
-
-                response += (
-                    f"\n🌳 {ubicacion}\n"
+                texto = (
+                    f"🌳 {ubicacion}\n"
                     f"🖊 {descripcion}\n"
                     f"📏 Superficie: {superficie} m²\n"
                     f"📄 Documento: {documento}\n"
                     f"💵 Precio: ${precio:,.2f} MXN\n"
                 )
-            response += "\n✅ Si te interesa alguno, responde 'comprar terreno'"
+                if pdf_url:
+                    texto += f"📎 Más detalles: {pdf_url}"
+                msg.body(texto)
+            else:
+                msg.body("⚠ No hay terrenos registrados en este momento.")
         except Exception as e:
-            print("❌ Error en opción 2 (ver terrenos):", e)
-            response = "⚠ Error al consultar terrenos en la base de datos."
+            msg.body("⚠ Error al consultar terrenos.")
+            print("❌ Error:", e)
 
-    elif incoming_msg_lower == 'comprar casa':
-        esperando_datos[from_number] = 'casa'
-        response = (
-            "📝 ¡Perfecto! Por favor envíanos tus datos así:\n\n"
-            "Mi nombre es Juan Pérez, mi tel es 7441234567, mi correo es juan@mail.com, pago contado"
-        )
-
-    elif incoming_msg_lower == 'comprar terreno':
-        esperando_datos[from_number] = 'terreno'
-        response = (
-            "📝 ¡Perfecto! Por favor envíanos tus datos así:\n\n"
-            "Mi nombre es Juan Pérez, mi tel es 7441234567, mi correo es juan@mail.com, pago contado"
-        )
-
-    elif 'asesor' in incoming_msg_lower or incoming_msg_lower in ['3', '3.', 'tres']:
+    elif incoming_msg_lower in ['3', '3.', 'tres', 'asesor']:
         try:
-            if not cursor:
-                raise Exception("Cursor no disponible")
-
             cursor.execute("SELECT nombre, telefono FROM asesores LIMIT 1")
             asesor = cursor.fetchone()
             if asesor:
                 nombre, telefono = asesor
-                response = (
+                msg.body(
                     f"📞 Asesor disponible:\n\n"
                     f"👤 Nombre: {nombre}\n"
                     f"📞 Teléfono: {telefono}\n\n"
                     "👇 Puedes llamarlo directamente o enviarle un WhatsApp."
                 )
             else:
-                response = "⚠ No hay asesores disponibles en este momento."
+                msg.body("⚠ No hay asesores disponibles en este momento.")
         except Exception as e:
-            print("❌ Error al consultar asesores:", e)
-            response = "⚠ Error de conexión a la base de datos."
+            msg.body("⚠ Error al consultar asesores.")
+            print("❌ Error:", e)
 
     else:
-        response = (
-            "🤔 No entendí tu mensaje.\n"
-            "✉ Por favor responde 'hola' para ver las opciones disponibles."
-        )
+        msg.body("🤔 No entendí tu mensaje.\n✉ Por favor responde 'hola' para ver las opciones disponibles.")
 
-    msg.body(response)
     return str(resp)
 
 if __name__ == '__main__':
