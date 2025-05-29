@@ -2,17 +2,21 @@ from flask import Flask, request
 from twilio.twiml.messaging_response import MessagingResponse
 import psycopg2
 import re
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
 
 app = Flask(__name__)
 
-# Conexión a la base de datos
+# Conexión a la base de datos usando variables de entorno
 try:
     conn = psycopg2.connect(
-        host="dpg-d07dj7s9c44c739strhg-a.oregon-postgres.render.com",
-        database="db_inmobiliaria_59oj",
-        user="db_inmobiliaria_59oj_user",
-        password="BCLBs5e4e9SgG6tl3Ckkq7Lg7GHlU0sw",
-        port="5432",
+        host=os.getenv("DB_HOST"),
+        database=os.getenv("DB_NAME"),
+        user=os.getenv("DB_USER"),
+        password=os.getenv("DB_PASSWORD"),
+        port=os.getenv("DB_PORT", "5432"),
         sslmode='require'
     )
     cursor = conn.cursor()
@@ -34,7 +38,6 @@ def whatsapp_bot():
     global esperando_datos
 
     if from_number in esperando_datos and esperando_datos[from_number]:
-        # Se espera un mensaje con datos personales
         datos = incoming_msg.strip()
         match = re.match(r".*?nombre es (.*?),.*?tel.*?(\d{7,15}),.*?correo es (.*?@.*?),(.*)", datos, re.IGNORECASE)
         if match:
@@ -53,7 +56,7 @@ def whatsapp_bot():
             except Exception as e:
                 response = f"⚠ Error al guardar tus datos: {e}"
         else:
-            response = "⚠ Por favor, asegúrate de enviar tus datos como en el ejemplo:\n\nMi nombre es Juan Pérez, mi tel es 7441234567, mi correo es juan@mail.com, pago contado"
+            response = "⚠ Por favor, envía tus datos como:\nMi nombre es Juan Pérez, mi tel es 7441234567, mi correo es juan@mail.com, pago contado"
         msg.body(response)
         return str(resp)
 
@@ -71,7 +74,7 @@ def whatsapp_bot():
             cursor.execute("""
                 SELECT titulo, descripcion, precio, modalidad, ubicacion, tipo, estado, edad,
                        num_recamaras, num_banios, num_estacionamientos, superficie_terreno,
-                       mtrs_construidos, imagen_url
+                       mtrs_construidos, pdf_url
                 FROM propiedades
                 ORDER BY id ASC
                 LIMIT 1
@@ -81,10 +84,10 @@ def whatsapp_bot():
             for prop in propiedades:
                 (titulo, descripcion, precio, modalidad, ubicacion, tipo, estado, edad,
                  num_recamaras, num_banios, num_estacionamientos, superficie_terreno,
-                 mtrs_construidos, imagen_url) = prop
+                 mtrs_construidos, pdf_url) = prop
 
-                if imagen_url:
-                    msg.media(imagen_url)
+                if pdf_url:
+                    msg.media(pdf_url)
 
                 response += (
                     f"\n🏠 {titulo}\n"
@@ -102,11 +105,10 @@ def whatsapp_bot():
         else:
             response = "⚠ Error de conexión a la base de datos."
 
-
     elif 'ver terrenos' in incoming_msg_lower or incoming_msg_lower in ['2', '2.', 'dos']:
         if cursor:
             cursor.execute("""
-                SELECT ubicacion, descripcion, precio, superficie, documento
+                SELECT ubicacion, descripcion, precio, superficie, documento, pdf_url
                 FROM terrenos
                 ORDER BY id ASC
                 LIMIT 4
@@ -114,7 +116,11 @@ def whatsapp_bot():
             terrenos = cursor.fetchall()
             response = "🌳 Terrenos disponibles:\n"
             for terreno in terrenos:
-                ubicacion, descripcion, precio, superficie, documento = terreno
+                ubicacion, descripcion, precio, superficie, documento, pdf_url = terreno
+
+                if pdf_url:
+                    msg.media(pdf_url)
+
                 response += (
                     f"\n🌳 {ubicacion}\n"
                     f"🖊 {descripcion}\n"
@@ -129,14 +135,14 @@ def whatsapp_bot():
     elif incoming_msg_lower == 'comprar casa':
         esperando_datos[from_number] = 'casa'
         response = (
-            "📝 ¡Perfecto! Por favor envíanos tus datos en el siguiente formato:\n\n"
+            "📝 ¡Perfecto! Por favor envíanos tus datos así:\n\n"
             "Mi nombre es Juan Pérez, mi tel es 7441234567, mi correo es juan@mail.com, pago contado"
         )
 
     elif incoming_msg_lower == 'comprar terreno':
         esperando_datos[from_number] = 'terreno'
         response = (
-            "📝 ¡Perfecto! Por favor envíanos tus datos en el siguiente formato:\n\n"
+            "📝 ¡Perfecto! Por favor envíanos tus datos así:\n\n"
             "Mi nombre es Juan Pérez, mi tel es 7441234567, mi correo es juan@mail.com, pago contado"
         )
 
